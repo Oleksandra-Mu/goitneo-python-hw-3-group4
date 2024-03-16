@@ -1,6 +1,5 @@
 """Module supplying classes for manipulating dictionaries"""
 from collections import UserDict, defaultdict
-"""Module supplying classes for manipulating dates and times"""
 from datetime import datetime
 import re
 
@@ -23,7 +22,7 @@ class Phone(Field):
         if number and len(phone) == 10:
             super().__init__(phone)
         else:
-            print("Wrong phone number")
+            print("Phone number must consist of 10 digits")
 
 class Birthday(Field):
     """class Birthday works with the contact's date of birth"""
@@ -60,14 +59,23 @@ class Record:
         for p in self.phones:
             if p.value == search_phone:
                 return p
-            
     def add_birthday(self, birthday):
         """function adds birthday to the contact"""
-        self.birthday = Birthday(birthday)
-
+        try:
+            self.birthday = datetime.strptime(birthday, "%d.%m.%Y")
+            return 'Birthday added'
+        except ValueError:
+            return "Birthday should be in format DD.MM.YYYY"
+    def show_birthday(self):
+        """function shows contact's birthday"""
+        try:
+            return self.birthday.strftime('%d.%m.%Y')
+        except KeyError:
+            return 'Contact not found'
     def __str__(self):
-        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}, birthday: {self.birthday}"
-
+        return f"Contact name: {self.name.value}{', phones: '
+            + '; '.join(p.value for p in self.phones) if self.phones else ''}{', birthday: '
+            + self.birthday.strftime('%d.%m.%Y') if self.birthday else ''}"
 class AddressBook(UserDict):
     """class AddressBook works with the contact records"""
     def add_record(self, record):
@@ -91,22 +99,23 @@ class AddressBook(UserDict):
             else:
                 continue
 
-    def get_birthdays_per_week(self, book):
+    def get_birthdays_per_week(self):
         """Function prints a list of colleagues' birthdays for the following 7 days"""
         today = datetime.today().date()
         list_of_birthday_colleagues = defaultdict(list)
-        for contact in book:
-            birthday = contact["birthday"].date()
-            birthday_this_year = birthday.replace(year=today.year)
+        result = ''
+        for name, record in self.items():
+            # birthday =  record.birthday.value.date()
+            birthday_this_year = record.birthday.replace(year=today.year).date()
             if birthday_this_year < today:
-                birthday_this_year = birthday.replace(year=today.year+1)
+                birthday_this_year = birthday_this_year.replace(year=today.year+1)
             else:
-                birthday_this_year = birthday.replace(year=today.year)
-            contact["birthday"] = birthday_this_year
-        sorted_list = sorted(book, key = lambda contact: contact["birthday"])
-        for contact in sorted_list:
-            name = contact["name"]
-            next_birthday = contact["birthday"]
+                birthday_this_year = birthday_this_year.replace(year=today.year)
+            record.birthday = birthday_this_year
+        # sorted_list = sorted(book, key = lambda contact: contact["birthday"])
+        for name, record in self.items():
+            # name = contact["name"]
+            next_birthday = record.birthday
             delta_days = (next_birthday - today).days
             str_next_birthday = str(next_birthday)
             if delta_days < 7:
@@ -116,5 +125,14 @@ class AddressBook(UserDict):
                     list_of_birthday_colleagues['Monday'].append(name)
                 else:
                     list_of_birthday_colleagues[day_of_the_week].append(name)
-        for day, names in list_of_birthday_colleagues.items():
-            return f"{day}: {', '.join(names)}"
+        for day, name in list_of_birthday_colleagues.items():
+            result += f"{day}: {', '.join(name)}\n"
+        return result
+    def __str__(self):
+        result = ''
+        for key, value in self.data.items():
+            result += f"""Contact name: {key}{', phones: '
+            + '; '.join(p.value for p in value.phones) if value.phones else ''}{', birthday: '
+            + value.birthday.strftime('%d.%m.%Y') if value.birthday else ''}\n"""
+        return result
+    

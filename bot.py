@@ -8,7 +8,12 @@ def input_error(func):
         try:
             return func(*args, **kwargs)
         except ValueError:
-            return "Give me name and phone please."
+            if func.__name__ == "add_birthday":
+                return "Please provide contact name and birthday in format DD.MM.YYYY."
+            elif func.__name__ == "delete_contact" or \
+                 func.__name__ == "show_phone" or func.__name__ == "show_birthday":
+                return "Please provide contact name"
+            return "Please provide contact name and phone."
         except KeyError:
             return "Contact not found."
 
@@ -24,15 +29,21 @@ def parse_input(user_input):
 def add_contact(args, book):
     """Function adds new contacts in the contact dictionary"""
     name, phone = args
-    book[name] = phone
+    if len(phone) != 10:
+        return 'Phone number must consist of 10 digits'
+    record = Record(name)
+    record.add_phone(phone)
+    book.add_record(record)
     return "Contact added."
 
 @input_error
 def change_contact(args, book):
     """Function checks if a contact is in contacts and substitutes the phone number"""
-    name, phone = args
+    name, old_phone, new_phone = args
     if name in book.keys():
-        book[name] = phone
+        record = book.find(name)
+        old_phone = record.phones[0]
+        record.edit_phone(old_phone, new_phone)
         return "Contact updated."
     else:
         raise KeyError
@@ -42,30 +53,62 @@ def show_phone(args, book):
     """Function checks if a contact is in contacts and prints user's phone number"""
     name = args[0]
     if name in book:
-        return book[name]
+        record = book.find(name)
+        return record.show_phones()
     else:
         raise KeyError
 
 def show_all(book):
     """Function prints all contacts from the dictionary"""
-    return book
+    return book.__str__()
 
+@input_error
 def add_birthday(args, book):
+    """Function adds birthday for the existing contact and creates a new contact with a birthday"""
     name, birthday = args
     if name in book.keys():
-        return Record.add_birthday(birthday)
+        record = book.find(name)
+        return record.add_birthday(birthday)
     else:
-        book[name] = birthday
+        record = Record(name)
+        book.add_record(record)
+        return record.add_birthday(birthday)
+@input_error
+def show_birthday(args, book):
+    """Function checks if a contact is in contacts and prints contact's birthday"""
+    if len (args) == 0:
+        raise ValueError
+    name = args[0]
+    record = book.find(name)
+    if record:
+        return record.show_birthday()
+    else:
+        raise KeyError
 
-def show_birthday(book):
-    return AddressBook.find_birthdays(book)
+def week_birthdays(book):
+    """
+    Function checks contacts' birthdays and 
+    prints people to congratulate during the following 7 days
+    """
+    return book.get_birthdays_per_week()
 
-def birthdays(book):
-    return AddressBook.get_birthdays_per_week(book)
+@input_error
+def delete_contact(args, book):
+    """Function checks if a contact is in contacts removes it"""
+    if len (args) == 0:
+        raise ValueError
+    name = args[0]
+    record = book.find(name)
+    if record is None:
+        raise KeyError
+    elif record:
+        book.delete(name)
+        return "Record is deleted."
 
 def main():
     """Function communicates with the user and carries out commands"""
-    book = {}
+    # book = {}
+    book = AddressBook()
     print("Welcome to the assistant bot!")
 
     while True:
@@ -85,12 +128,14 @@ def main():
             print(show_phone(args, book))
         elif command == "all":
             print(show_all(book))
+        elif command == "delete":
+            print(delete_contact(args, book))
         elif command == "add-birthday":
             print(add_birthday(args, book))
         elif command == "show-birthday":
             print(show_birthday(args, book))
         elif command == "birthdays":
-            print(birthdays(book))
+            print(week_birthdays(book))
         else:
             print("Invalid command.")
 
